@@ -21,6 +21,7 @@ class SimpleCalendar {
 
 	private $now;
 	private $dailyHtml = array();
+  private $dailyLink = array();
 	private $offset = 0;
 
 	/**
@@ -45,6 +46,33 @@ class SimpleCalendar {
 			$this->now = getdate();
 		}
 	}
+
+  /**
+   * Add a daily event to the calendar
+   *
+   * @param string      $html The raw HTML to place on the calendar for this event
+   * @param string      $start_date_string Date string for when the event starts
+   * @param null|string $end_date_string Date string for when the event ends. Defaults to start date
+   */
+  public function addDailyLink( $link, $start_date_string, $end_date_string = null ) {
+    static $linkCount = 0;
+    $start_date = strtotime($start_date_string);
+    if( $end_date_string ) {
+      $end_date = strtotime($end_date_string);
+    } else {
+      $end_date = $start_date;
+    }
+
+    $working_date = $start_date;
+    do {
+      $tDate        = getdate($working_date);
+      $working_date += 86400;
+
+      $this->dailyLink[$tDate['year']][$tDate['mon']][$tDate['mday']][$linkCount] = $link;
+    } while( $working_date < $end_date + 1 );
+
+    $linkCount++;
+  }
 
 	/**
 	 * Add a daily event to the calendar
@@ -74,9 +102,14 @@ class SimpleCalendar {
 	}
 
 	/**
-	 * Clear all daily events for the calendar
+	 * Clear all daily events HTML for the calendar
 	 */
 	public function clearDailyHtml() { $this->dailyHtml = array(); }
+
+  /**
+   * Clear all daily events for the calendar
+   */
+  public function clearDailyLinks() { $this->dailyLink = array(); }
 
 	/**
 	 * Sets the first day of the week
@@ -163,6 +196,80 @@ class SimpleCalendar {
 
 		return $out;
 	}
+
+  /**
+   * Returns/Outputs the Calendar with links.
+   *
+   * @param bool $echo Whether to echo resulting calendar
+   * @return string HTML of the Calendar
+   */
+  public function showLinks( $echo = true ) {
+    if( $this->wday_names ) {
+      $wdays = $this->wday_names;
+    } else {
+      $today = (86400 * (date("N")));
+      $wdays = array();
+      for( $i = 0; $i < 7; $i++ ) {
+        $wdays[] = strftime('%a', time() - $today + ($i * 86400));
+      }
+    }
+
+    $this->arrayRotate($wdays, $this->offset);
+    $wday    = date('N', mktime(0, 0, 1, $this->now['mon'], 1, $this->now['year'])) - $this->offset;
+    $no_days = cal_days_in_month(CAL_GREGORIAN, $this->now['mon'], $this->now['year']);
+
+    $out = '<table cellpadding="0" cellspacing="0" class="SimpleCalendar"><thead><tr>';
+
+    for( $i = 0; $i < 7; $i++ ) {
+      $out .= '<th>' . $wdays[$i] . '</th>';
+    }
+
+    $out .= "</tr></thead>\n<tbody>\n<tr>";
+
+    $wday = ($wday + 7) % 7;
+
+    if( $wday == 7 ) {
+      $wday = 0;
+    } else {
+      $out .= str_repeat('<td class="SCprefix">&nbsp;</td>', $wday);
+    }
+
+    $count = $wday + 1;
+    for( $i = 1; $i <= $no_days; $i++ ) {
+      $out .= '<td' . ($i == $this->now['mday'] && $this->now['mon'] == date('n') && $this->now['year'] == date('Y') ? ' class="today"' : '') . '>';
+
+      $datetime = mktime(0, 0, 1, $this->now['mon'], $i, $this->now['year']);
+
+      $link = false;
+      if( isset($this->dailyLink[$this->now['year']][$this->now['mon']][$i]) ) {
+        $link = $this->dailyLink[$this->now['year']][$this->now['mon']][$i];
+      }
+
+      if ($link) {
+        $out .= '<a href="' . $link . '">';
+        $out .= '<time datetime="' . date('Y-m-d', $datetime) . '">' . $i . '</time>';
+        $out .= '</a>';
+      }
+      else {
+        $out .= '<time datetime="' . date('Y-m-d', $datetime) . '">' . $i . '</time>';
+      }
+
+      $out .= "</td>";
+
+      if( $count > 6 ) {
+        $out .= "</tr>\n" . ($i < $no_days ? '<tr>' : '');
+        $count = 0;
+      }
+      $count++;
+    }
+    $out .= ( $count != 1 ) ? str_repeat('<td class="SCsuffix">&nbsp;</td>', 8 - $count) . '</tr>' : '';
+    $out .= "\n</tbody></table>\n";
+    if( $echo ) {
+      echo $out;
+    }
+
+    return $out;
+  }
 
 	/**
 	 * @param array $data
