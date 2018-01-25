@@ -68,7 +68,7 @@ class SimpleCalendar {
       $tDate        = getdate($working_date);
       $working_date += 86400;
 
-      $this->dailyLink[$tDate['year']][$tDate['mon']][$tDate['mday']][$linkCount] = $link;
+      $this->dailyLink[$tDate['year']][$tDate['mon']][$tDate['mday']] = $link;
     } while( $working_date < $end_date + 1 );
 
     $linkCount++;
@@ -246,7 +246,7 @@ class SimpleCalendar {
       }
 
       if ($link) {
-        $out .= '<a href="' . $link . '">';
+        $out .= '<a href="' . $link . date('Y-m-d', $datetime) . '">';
         $out .= '<time datetime="' . date('Y-m-d', $datetime) . '">' . $i . '</time>';
         $out .= '</a>';
       }
